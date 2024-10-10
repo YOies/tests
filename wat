@@ -1,3 +1,4 @@
+--gg
 
 
 local vu = game:GetService("VirtualUser")
@@ -36,6 +37,8 @@ do
     local Fish = Tabs.Main:AddToggle("FishToggle", {Title = "Auto Fish", Default = false })
     local SwordInRock = Tabs.Main:AddToggle("SwordInRockToggle", {Title = "Auto Sword In Rock", Default = false })
     local AutoPVP = Tabs.Main:AddToggle("AutoPVPToggle", {Title = "Auto PVP", Default = false })
+    local AutoRefreshPVP = Tabs.Main:AddToggle("AutoRefreshPVPToggle", {Title = "Auto Refresh PVP If You Fought All Opponents", Default = false })
+    local AutoFightHighestDungeon = Tabs.Main:AddToggle("AutoFightHighestDungeonToggle", {Title = "Auto Fight The Dungeon Closest To Your DPS", Default = false })
     local AutoUseAllPotions = Tabs.Main:AddToggle("AutoUseAllPotionToggle", {Title = "Auto Use All Potions", Default = false })
 
 
@@ -189,10 +192,122 @@ do
         end
     end)
     
+    AutoRefreshPVP:OnChanged(function()
+        while Options.AutoRefreshPVPToggle.Value == true do  
+            task.wait(.1)
+        local opponentsList = game:GetService("Players").LocalPlayer.PlayerGui.ScreenGui.PVP.Attack.OpponentsList:GetChildren()
 
+local allDifferent = true
 
+for _, child in pairs(opponentsList) do
+    if child:IsA("Frame") and child:FindFirstChild("Fight") and child.Fight:FindFirstChild("Button") and child.Fight.Button:FindFirstChild("Title") then
+        local labelText = child.Fight.Button.Title.Text 
+        if labelText == "⚔️Fight" then
+            print(child.Name .. " has the fight text")
+            allDifferent = false
+        end
+    end
+end
 
+if allDifferent then
+    print("Passed check!, Refresh PVP List")
+    game:GetService("ReplicatedStorage"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("PVPService"):WaitForChild("RF"):WaitForChild("RefreshOpponents"):InvokeServer()
 
+end
+
+if  Options.AutoRefreshPVPToggle.Value == false then 
+    break 
+  end 
+end 
+    end)
+
+    AutoFightHighestDungeon:OnChanged(function()
+        while Options.AutoFightHighestDungeonToggle.Value == true do  
+            task.wait(.1)
+            if game:GetService("Players").LocalPlayer.PlayerGui.ScreenGui.DungeonProgress.Visible == false then 
+-- Function to convert DPS text to a number, if necessary
+function convertToNumber(valueString)
+    local number, suffix = valueString:match("(%d+)(%a+)")
+    
+    if not number then
+        print("No number found in: " .. valueString) 
+        return tonumber(valueString) 
+    end
+
+    number = tonumber(number) 
+    if suffix == "K" then
+        return number * 1_000        
+    elseif suffix == "M" then
+        return number * 1_000_000    
+    elseif suffix == "B" then
+        return number * 1_000_000_000 
+    elseif suffix == "T" then
+        return number * 1_000_000_000_000 
+    elseif suffix == "QD" then
+        return number * 1_000_000_000_000_000 
+    else
+        print("Unknown suffix in: " .. valueString) 
+        return number -- If no known suffix, return the original number
+    end
+end
+
+-- Get the player's DPS
+local dpsText = game:GetService("Players").LocalPlayer.PlayerGui.ScreenGui.PlayerState.DPS.Text
+local playerDPS = convertToNumber(dpsText)
+
+-- Initialize a variable to track the highest dungeon DPS the player can beat
+local highestDungeonDPS = nil
+local highestDungeon = nil
+
+-- Iterate through dungeons and compare their DPS
+for dungeonName, dungeon in pairs(workspace.Dungeons:GetChildren()) do
+    local powerText = dungeon.Entrance and dungeon.Entrance.DoorScreen.SurfaceGui.Power and dungeon.Entrance.DoorScreen.SurfaceGui.Power.Text
+
+    if powerText then
+        -- Remove non-numeric characters (except for the digits)
+        local cleanedText = powerText:gsub("[^%d]", "") -- Remove all characters except digits
+
+        local dungeonDPS = tonumber(cleanedText) -- Convert the cleaned text to a number
+
+        if dungeonDPS then
+        --    print(dungeonName .. ": " .. dungeonDPS) -- Print the dungeon name and its DPS
+            
+            -- Check if playerDPS is higher than the dungeonDPS
+            if playerDPS > dungeonDPS then
+           --     print("Player DPS: " .. playerDPS .. " is higher than " .. dungeonName .. " DPS: " .. dungeonDPS)
+                
+                -- Find the highest dungeon DPS the player can beat
+                if not highestDungeonDPS or dungeonDPS > highestDungeonDPS then
+                    highestDungeonDPS = dungeonDPS
+                    highestDungeon = dungeon -- Store the reference to the highest dungeon
+                end
+            end
+        else
+            print(dungeonName .. ": The text is not a valid number.")
+        end
+    else
+        print(dungeonName .. ": Power text not found.")
+    end
+end
+
+-- Check if we found the highest dungeon the player can beat
+if highestDungeon and highestDungeon.Entrance and highestDungeon.Entrance.DoorScreen then
+    -- Teleport the player to the highest dungeon's DoorScreen
+    local player = game.Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+
+    character:SetPrimaryPartCFrame(highestDungeon.Entrance.DoorScreen.CFrame * CFrame.new(0,0,-7)) -- Teleport the player
+    print("Teleported to: " .. highestDungeon.Name .. ".")
+else
+    print("No valid dungeon found to teleport to.")
+end
+            if  Options.AutoFightHighestDungeonToggle.Value == false then 
+                break 
+              end 
+            end 
+        end 
+        end 
+    end)
 end -- end for UI
 
 
